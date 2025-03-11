@@ -1,31 +1,31 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  try {
-    console.log("Starting deployment...");
-    
-    const TicketTracker = await ethers.getContractFactory("TicketTracker");
-    console.log("Deploying contract...");
-    
-    const ticketTracker = await TicketTracker.deploy({
-      gasLimit: 3000000,
-      gasPrice: ethers.parseUnits("50", "gwei"), // Higher gas price for faster processing
-    });
+  const [deployer] = await ethers.getSigners();
 
-    console.log("Waiting for deployment...");
-    await ticketTracker.waitForDeployment();
+  console.log("Deploying with:", deployer.address);
+  console.log("Balance:", ethers.formatEther(await deployer.provider!.getBalance(deployer.address)), "ETH");
 
-    const address = await ticketTracker.getAddress();
-    console.log(`TicketTracker deployed to: ${address}`);
-  } catch (error) {
-    console.error("Deployment failed:", error);
-    process.exit(1);
-  }
+  const TicketTracker = await ethers.getContractFactory("TicketTracker");
+
+  const feeData = await deployer.provider!.getFeeData();
+  const gasPrice = feeData.gasPrice!;
+  const gasLimit = 1_500_000; // Slightly above estimate
+
+  console.log("Using Gas Price:", ethers.formatUnits(gasPrice, "gwei"), "GWEI");
+  console.log("Setting Gas Limit:", gasLimit);
+
+  const ticketTracker = await TicketTracker.deploy({
+    gasPrice: gasPrice * 110n / 100n, // Add a 10% buffer
+    gasLimit: gasLimit,
+  });
+
+  await ticketTracker.waitForDeployment();
+
+  console.log(`TicketTracker deployed to: ${await ticketTracker.getAddress()}`);
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
